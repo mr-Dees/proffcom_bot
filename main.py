@@ -103,7 +103,7 @@ async def main() -> None:
     await dp.start_polling(bot)
 
 
-# Точка входа'
+# Точка входа
 if __name__ == "__main__":
     # Включаем логирование на уровне INFO и выше. Вывод происходит в консоль
     logging.basicConfig(level=logging.INFO, stream=sys.stdout)
