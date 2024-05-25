@@ -70,17 +70,10 @@ async def echo_handler(message: Message) -> None:
     try:
         # Добавляем текущее сообщение от пользователя в контекст беседы
         context_messages.append({"role": "user", "text": message.text})
-        # Вывод в консоль текущее сообщение от пользователя и весь контекст диалога
         print("user: ", message.text)
-        print("user context_messages: ", context_messages)
-
         # Запрашиваем ответ на вопрос у Яндекса
         gpt_message = await ask_yandex_gpt(context_messages)
-        # Добавляем текущее сообщение от Яндекса в контекст беседы
-        context_messages.append({"role": "assistant", "text": gpt_message})
-        # Вывод в консоль текущее сообщение от Яндекса и весь контекст диалога
         print("gpt: ", gpt_message)
-        print("gpt context_messages: ", context_messages)
 
         # Отправляем ответ полученный от Яндекса
         await message.answer(gpt_message)
@@ -103,7 +96,7 @@ async def main() -> None:
     await dp.start_polling(bot)
 
 
-# Точка входа'
+# Точка входа
 if __name__ == "__main__":
     # Включаем логирование на уровне INFO и выше. Вывод происходит в консоль
     logging.basicConfig(level=logging.INFO, stream=sys.stdout)
