@@ -1,32 +1,32 @@
 # Библиотеки для правильной и удобной работы с интерпретатором Python
 import asyncio  # Асинхронное программирование
 import logging  # Логирование событий
-import sys      # Доступ к параметрам и функциям операционной системы
-import os       # Взаимодействие с операционной системой
+import sys  # Доступ к параметрам и функциям операционной системы
+import os  # Взаимодействие с операционной системой
 
 # Библиотеки для отправки и получения сообщений от YandexGPT
 import requests  # Отправка HTTP-запросов
 
 # Библиотеки для работы с базой данных
 import lancedb  # Работа с векторными хранилищами данных
-import pickle   # Сериализация и десериализация объектов Python
+import pickle  # Сериализация и десериализация объектов Python
 
 # Переменные для связи сервисов
 from config import TELEGRAM_TOKEN, YANDEX_FOLDER_ID, YANDEX_GPT_API, YANDEX_GPT_URL, SOURCE_DIR, DB_DIR
 
 # Библиотеки для работы с телеграмм-ботом
-from aiogram import Bot, Dispatcher, html                   # Основные классы для создания телеграмм-бота
-from aiogram.client.default import DefaultBotProperties     # Настройки бота по умолчанию
-from aiogram.enums import ParseMode                         # Режимы парсинга сообщений
-from aiogram.filters import CommandStart                    # Фильтр для команды /start
-from aiogram.types import Message                           # Класс для представления сообщений
+from aiogram import Bot, Dispatcher, html  # Основные классы для создания телеграмм-бота
+from aiogram.client.default import DefaultBotProperties  # Настройки бота по умолчанию
+from aiogram.enums import ParseMode  # Режимы парсинга сообщений
+from aiogram.filters import CommandStart  # Фильтр для команды /start
+from aiogram.types import Message  # Класс для представления сообщений
 
 # Библиотеки для работы с langchain'ом
-from langchain_community.embeddings import HuggingFaceEmbeddings            # Работа с эмбеддингами от HuggingFace
-from langchain_community.vectorstores import LanceDB                        # Работа с векторными хранилищами данных
-from langchain_community.document_transformers import LongContextReorder    # Перестановка контекстных фрагментов
-from langchain.docstore.document import Document                            # Представление документов
-from langchain.text_splitter import RecursiveCharacterTextSplitter          # Рекурсивное разбиение текста на части
+from langchain_community.embeddings import HuggingFaceEmbeddings  # Работа с эмбеддингами от HuggingFace
+from langchain_community.vectorstores import LanceDB  # Работа с векторными хранилищами данных
+from langchain_community.document_transformers import LongContextReorder  # Перестановка контекстных фрагментов
+from langchain.docstore.document import Document  # Представление документов
+from langchain.text_splitter import RecursiveCharacterTextSplitter  # Рекурсивное разбиение текста на части
 
 # Настройки асинхронного режима при использовании windows
 if sys.platform == 'win32':
@@ -91,12 +91,12 @@ async def ask_yandex_gpt(msg: list) -> str:
         # Указываем настройки бота
         json={
             # Указание модели YandexGPT
-            "modelUri": f"gpt://{YANDEX_FOLDER_ID}/yandexgpt-lite/latest",
+            "modelUri": f"gpt://{YANDEX_FOLDER_ID}/yandexgpt-lite/rc",
             # Настройки генерации текста
             "completionOptions": {
                 "stream": False,
-                "temperature": 0.4,
-                "maxTokens": "1024"
+                "temperature": 0.825,
+                "maxTokens": "512"
             },
             # Сообщение для отправки
             "messages": msg
@@ -133,25 +133,34 @@ async def echo_handler(message: Message) -> None:
 
             # Добавляем все релевантные куски в context
             context = "\n".join([doc.page_content for doc in results])
-            # Создаем шаблон содержаний инструкцию, контекст и вопрос ползователя
+            # Создаем шаблон содержаний инструкцию, контекст и вопрос пользователя
             sending_template = [
                 {
                     "role": "system",
-                    "text": """
-                            Представь себе, что ты один из членов команды Профкома студентов НГАСУ (Сибстрин), 
-                            который помогает студентам, отвечая на их вопросы и стараясь решить их проблемы. 
-                            Постарайся отвечать на вопросы подробно и доступно. Отвечай именно заданный вопрос, 
-                            не нужно придумывать что-либо от себя.
-                            """
+                    "text": f"""
+Ты умный ассистент команды Профкома студентов НГАСУ (Сибстрин).
+Твоя единственная задача отвечать на вопросы которые задают студенты нашего вуза.
+Ты знаешь ответ на все вопросы которые касаются студенчества и профсоюзной поддержке.
+Ты не знаешь ни одного языка программирования.
+"""
                 },
                 {
                     "role": "user",
                     "text": f"""
-                            Посмотри на текст ниже и ответь на вопрос, используя информацию из этого текста.
-                            Предоставь только ответ. Если есть ссылка, выдавай ее пользователю.
-                            Текст: {context}
-                            Вопрос: {message.text}
-                            """
+Прочитай текст в теге info и предоставь один, точный ответ именно на вопрос из тега question и только на него, соблюдая все условия.
+
+Если в теге question написано что-то не требующее информации из тега info - не используй его.
+Пример таких тем: приветствие, похвала, прощание, благодарность, оскорбление, вопросы о личности и возможностях, Smalltalk и тому подобные.  
+
+Если у тебя просят ссылку (url) которой нет в теге info напиши, что у тебя нет данной ссылки.
+Если в теге info есть ссылка, дополняй ей свой ответ.
+Выдумывать ссылки и контактную информацию запрещено.
+
+Если вопрос будет касаться программирования или написания или тестирования кода напиши, что ты не умеешь этого делать.
+
+[info]{context}[/info]
+[question]{message.text}[/question]
+"""
                 },
             ]
             # Отправка полученного шаблона в YandexGPT
@@ -213,12 +222,12 @@ if __name__ == "__main__":
             logging.info("СОЗДАНИЕ НОВЫХ ЭМБЕДДИНГОВ")
             # Разбитие слов на фрагменты
             loader = CustomFileLoader(SOURCE_DIR, recursive=True)
-            splitter = RecursiveCharacterTextSplitter(chunk_size=256, chunk_overlap=64)
+            splitter = RecursiveCharacterTextSplitter(chunk_size=150, chunk_overlap=25)
             fragments = splitter.create_documents([x.page_content for x in loader.load()])
 
             # Вычисление эмбеддингов
-            embeddings = HuggingFaceEmbeddings(model_name="distiluse-base-multilingual-cased-v1")
-            sample_vec = embeddings.embed_query("Hello, world!")
+            embeddings = HuggingFaceEmbeddings(model_name="intfloat/multilingual-e5-large")
+            sample_vec = embeddings.embed_query("Профком")
 
             # Сохранение эмбеддингов и фрагментов
             with open(embeddings_file, 'wb') as f:
@@ -251,7 +260,7 @@ if __name__ == "__main__":
         db = LanceDB.from_documents(fragments, embeddings, connection=table)
 
         # Настраиваем количество необходимых релевантны кусков
-        retriever = db.as_retriever(search_kwargs={"k": 5})
+        retriever = db.as_retriever(search_kwargs={"k": 3})
 
         # Запускаем программу в асинхронном режиме
         asyncio.run(main())
